@@ -9,6 +9,8 @@
 #include <QFuture>
 #include <QCameraInfo>
 
+#include "convert.h"
+
 namespace Ui {
 class MainWindow;
 }
@@ -23,6 +25,8 @@ public:
 
     void init();
     void createMask(QPainter* painter, int width, int height, float maskRate, float angleRate, bool faceFound);
+    bool detectFace(QImage &image, cv::Rect& faceRect);
+    QRect getFaceBoxRect(cv::Rect faceRect, int drawingWidth, int imageWidth);
 protected:
     bool eventFilter(QObject *obj, QEvent *event);
     void labelPaint();

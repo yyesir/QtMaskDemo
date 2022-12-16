@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "myvideosurface.h"
-
+#include "FaceDetectionAlgo.h"
 #include <QPainter>
 
 MainWindow::MainWindow(QWidget *parent) :
@@ -100,17 +100,62 @@ void MainWindow::createMask(QPainter* painter, int width, int height, float mask
         , QColor(ANGLE_R, ANGLE_G, ANGLE_B, ANGLE_A));
 }
 
+QRect MainWindow::getFaceBoxRect(cv::Rect faceRect, int drawingWidth, int imageWidth)
+{
+    float ratio = (float)drawingWidth / imageWidth;
+
+    QRect rect;
+    rect.setLeft((int)(faceRect.x * ratio));
+    rect.setTop((int)(faceRect.y * ratio));
+    rect.setRight((int)(faceRect.x + faceRect.width * ratio));
+    rect.setBottom((int)(faceRect.y + faceRect.height * ratio));
+
+    return rect;
+}
+
 void MainWindow::labelPaint()     //绘图
 {
     QPainter painter(ui->label);
     QBrush brush(QColor(0,0,0,0));
     painter.setBrush(brush);
     if(!videoImg.isNull())
+    {
         Pix = QPixmap::fromImage(videoImg);
 
-    painter.drawPixmap(0, 0, ui->label->width(), ui->label->height(),Pix);
-    createMask(&painter, ui->label->width(), ui->label->height(), 0.67, 0.023, false);
-    //painter.fillRect(0,0,ui->label->width(),ui->label->height(), brush);
+        painter.drawPixmap(0, 0, ui->label->width(), ui->label->height(),Pix);
+        bool noFaceFound = false;
+        cv::Rect faceRect;
+        if (!detectFace(videoImg, faceRect))
+            noFaceFound = false;
+        else
+            noFaceFound = true;
+
+        createMask(&painter, ui->label->width(), ui->label->height(), 0.67, 0.023, noFaceFound);
+        //画人脸框
+        if(noFaceFound)
+        {
+            QPen pen;
+            pen.setColor(Qt::green);
+            pen.setWidth(3);
+            pen.setStyle(Qt::SolidLine);
+            painter.setPen(pen);
+            qDebug() << "face x: " << faceRect.x << ", y: " << faceRect.y << ", width: " << faceRect.width << ", height: " << faceRect.height;
+            painter.drawRect(getFaceBoxRect(faceRect, ui->label->width(), videoImg.width()));
+        }
+    }
+}
+
+bool MainWindow::detectFace(QImage &image, cv::Rect& faceRect)
+{
+    cv::Mat srcImage = QImage2cvMat(image, true);
+    vector<cv::Rect> rects;
+    FaceDetectionAlgo::detect(srcImage, rects);
+    if (rects.empty()) {
+        return false;
+    } else {
+        faceRect = rects[0];
+        return true;
+    }
 }
 
 void MainWindow::paintEvent(QPaintEvent* e)
@@ -119,7 +164,7 @@ void MainWindow::paintEvent(QPaintEvent* e)
     QPen pen;
     pen.setColor(Qt::green);
     pen.setWidth(2);
-    pen.setStyle(Qt::DotLine);
+    pen.setStyle(Qt::SolidLine);
     _painter.setPen(pen);
 
     _painter.drawLine(0,0,width(),height());
@@ -151,6 +196,7 @@ void MainWindow::rcvFrame(QVideoFrame m_currentFrame)
                    m_currentFrame.width(),
                    m_currentFrame.height(),
                    QVideoFrame::imageFormatFromPixelFormat(m_currentFrame.pixelFormat())).copy();       //这里要做一个copy,因为char* pdata在emit后释放了
+    videoImg =  videoImg.scaled(640, 480, Qt::KeepAspectRatio, Qt::SmoothTransformation);   //图像缩放
     videoImg = videoImg.mirrored(true, true);                       //水平翻转，原始图片是反的
     m_currentFrame.unmap();                                         //释放map拷贝的内存
     ui->label->update();                                            //更新了，就会触发paintEvent画图
