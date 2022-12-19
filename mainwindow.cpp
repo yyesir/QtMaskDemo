@@ -11,6 +11,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     ui->label->installEventFilter(this); //这行不能省
 
+    ui->label->resize(width(), height());
     Pix = QPixmap(ui->label->width(), ui->label->height());
 
     init();
@@ -168,6 +169,11 @@ void MainWindow::paintEvent(QPaintEvent* e)
     _painter.setPen(pen);
 
     _painter.drawLine(0,0,width(),height());
+}
+
+void MainWindow::resizeEvent(QResizeEvent *)
+{
+    ui->label->resize(width(), height());
 }
 
 void MainWindow::init()

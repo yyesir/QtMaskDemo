@@ -31,6 +31,7 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event);
     void labelPaint();
     void paintEvent(QPaintEvent* e);
+    void resizeEvent(QResizeEvent *);
 
 private slots:
     void rcvFrame(QVideoFrame);                             //接收图像帧数据
